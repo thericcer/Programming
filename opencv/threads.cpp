@@ -6,7 +6,7 @@
 #include <opencv2/imgproc/types_c.h>
 #include <opencv2/imgproc.hpp>
 
-struct arguments {
+struct line_capture{
 	int thread;
 	cv::Mat raw;
 	cv::Mat canny;
@@ -30,9 +30,10 @@ void * line_thread_routine(void * input) {
 	size_t i = 0;
 	float angle = 0;
 
-	struct arguments * args = (struct arguments *)input;
+	struct line_capture * args = (struct line_capture *)input;
 
 	if (pthread_mutex_trylock(&line_mutex[args->thread]) != 0) {
+		pthread_mutex_unlock(&line_mutex[args->thread]);
 		pthread_exit(NULL);
 	}
 
@@ -49,8 +50,7 @@ void * line_thread_routine(void * input) {
 
 
 	if (args->lines.size() > 150) {
-		printf("thread: %d | Too Many Lines! %d | canny_thresh: %d\n", args->thread, args->lines.size(), args->canny_thresh);
-		args->num_good_lines = -1;
+		//printf("thread: %d | Too Many Lines! %d | canny_thresh: %d\n", args->thread, args->lines.size(), args->canny_thresh);
 		pthread_mutex_unlock(&line_mutex[args->thread]);
 		pthread_exit(NULL);
 	}
@@ -68,7 +68,7 @@ void * line_thread_routine(void * input) {
 		}
 	}
 	
-	printf("thread: %d | num_good_lines: %d | canny_thresh: %d | average_angle: %f | average_line: [%d, %d] [%d, %d]\n",
+	//printf("thread: %d | num_good_lines: %d | canny_thresh: %d | average_angle: %f | average_line: [%d, %d] [%d, %d]\n",
 		args->thread, args->num_good_lines, args->canny_thresh, args->average_angle, args->average_line[0], 
 		args->average_line[1], args->average_line[2], args->average_line[3]); 
 	pthread_mutex_unlock(&line_mutex[args->thread]);
@@ -85,14 +85,16 @@ int main(int argc, char ** argv) {
 	cv::Vec4i average_line;	
 	cv::Vec4i average_line_r;	
 
-	struct arguments args;
-	struct arguments args_r;
+	struct line_capture args;
+	struct line_capture args_r;
+	struct line_capture line_cap;
+	struct line_capture line_cap_r;
 	args.canny_thresh = 50;
 	args_r.canny_thresh = 50;
 
-
 	pthread_t line_thread;
 	pthread_t line_thread_r;
+	pthread_attr_t attr;
 	int rc = 0;
 	args.average_angle = 0;
 	args.average_line[0] = 0;
@@ -118,10 +120,12 @@ int main(int argc, char ** argv) {
 		
 		// Line Thread
 		if (pthread_mutex_trylock(&line_mutex[0]) == 0) {
+			pthread_attr_init(&attr);
+			pthread_attr_setstacksize(&attr, (sizeof(struct arguments)*2) + args.num_good_lines);
 
 			args.thread = 0;
 			args.raw = raw;
-			args.hough_thresh = 90;
+			args.hough_thresh = 40;
 			args.hough_min_length = 50;
 			args.hough_min_gap = 10;
 			args.min_angle = 130;
@@ -129,33 +133,37 @@ int main(int argc, char ** argv) {
 
 			if (args.num_good_lines < 5) {
 				if (args.canny_thresh > 0){
-					args.canny_thresh--;
+					args.canny_thresh -= 5;
 				}
 			} else {
 				if (args.canny_thresh < 500) {
-					args.canny_thresh++;
-				}
+					args.canny_thresh += 5;
+ 				}
 			}
-			if (args.num_good_lines == -1) {
-				args.canny_thresh += 50;
 
-			 } 
-			
+			line_cap = args;
+			printf("thread: %d | num_good_lines: %d | canny_thresh: %d | average_angle: %f | average_line: [%d, %d] [%d, %d]\n",
+				line_cap.thread, line_cap.num_good_lines, line_cap.canny_thresh, line_cap.average_angle, 
+				line_cap.average_line[0],line_cap.average_line[1],line_cap.average_line[2],line_cap.average_line[3]);
+						
 			average_line = args.average_line;
-			cv::imshow("cannu", args.canny);
+			cv::imshow("canny", line_cap.canny);
 			pthread_mutex_unlock(&line_mutex[0]);
 			
 
-			rc = pthread_create(&line_thread, NULL, line_thread_routine, (void *) &args);
+			rc = pthread_create(&line_thread, &attr, line_thread_routine, (void *) &args);
 
 			if (rc) {
-				printf("ERROR CREATING THREAD\n");
+				printf("ERROR CREATING THREAD %d\n", rc);
 			}
 
 		}
 
 		// Line R Thread
 		if (pthread_mutex_trylock(&line_mutex[1]) == 0) {
+			pthread_attr_init(&attr);
+			pthread_attr_setstacksize(&attr, (sizeof(struct arguments)*2) + args_r.num_good_lines);
+
 			args_r.thread = 1;
 			args_r.raw = raw_r;
 			args_r.hough_thresh = 90;
@@ -168,37 +176,38 @@ int main(int argc, char ** argv) {
 
 			if (args_r.num_good_lines < 5) {
 				if (args_r.canny_thresh > 0){
-					args_r.canny_thresh--;
+					args_r.canny_thresh -=5;
 				}
 			} else {
 				if (args_r.canny_thresh < 500) {
-					args_r.canny_thresh++;
+					args_r.canny_thresh += 5;
 				}
 			}
-			if (args_r.num_good_lines == -1) {
-				args_r.canny_thresh += 50;
 
-			 }  
+			line_cap_r = args_r;
+			printf("thread: %d | num_good_lines: %d | canny_thresh: %d | average_angle: %f | average_line: [%d, %d] [%d, %d]\n",
+				line_cap_r.thread, line_cap_r.num_good_lines, line_cap_r.canny_thresh, line_cap_r.average_angle, 
+				line_cap_r.average_line[0],line_cap_r.average_line[1],line_cap_r.average_line[2],line_cap_r.average_line[3]);
 			
 			average_line_r = args_r.average_line;
-			cv::imshow("cannu_r", args_r.canny);
+			cv::imshow("canny_r", line_cap_r.canny);
 			pthread_mutex_unlock(&line_mutex[1]);
 
-			rc = pthread_create(&line_thread_r, NULL, line_thread_routine, (void *) &args_r);
+			rc = pthread_create(&line_thread_r, &attr, line_thread_routine, (void *) &args_r);
 			if (rc) {
-				printf("ERROR CREATING THREAD\n");
+				printf("ERROR CREATING THREAD %d\n", rc);
 			}
 
 		}
 
-		cv::line(raw, cv::Point(average_line[0], average_line[1]),
-			      cv::Point(average_line[2], average_line[3]),
+		cv::line(raw, cv::Point(line_cap.average_line[0], line_cap.average_line[1]),
+			      cv::Point(line_cap.average_line[2], line_cap.average_line[3]),
 			      cv::Scalar(0, 255, 255), 3, CV_AA);
 
 		cv::imshow("raw", raw);
 
-		cv::line(raw_r, cv::Point(average_line_r[0], average_line_r[1]),
-			      cv::Point(average_line_r[2], average_line_r[3]),
+		cv::line(raw_r, cv::Point(line_cap_r.average_line_r[0], line_cap_r.average_line_r[1]),
+			      cv::Point(aline_cap_r.verage_line_r[2], line_cap_r.average_line_r[3]),
 			      cv::Scalar(0, 255, 255), 3, CV_AA);
 
 		cv::imshow("raw_r", raw_r);
