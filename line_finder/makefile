@@ -3,8 +3,8 @@ FLAGS=-O0 -Wall -lopencv_highgui -lopencv_core -lopencv_imgproc -lpthread
 RM=rm -rfv
 
 C_SRCS += \
-line_finder.cpp\
-main.cpp
+line_finder.c\
+main.c
 
 all : line_finder.elf
 
