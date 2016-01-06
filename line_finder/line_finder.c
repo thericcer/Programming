@@ -2,6 +2,8 @@
 
 void * line_finder_thread_routine(void * input) {
 
+    size_t i = 0;
+    float angle = 0;
 
     struct line_capture * args = (struct line_capture *)input;
 
@@ -21,23 +23,6 @@ void * line_finder_thread_routine(void * input) {
     cv::HoughLinesP(args->canny, args->lines, 1, CV_PI/180, args->hough_thresh,
                     args->hough_min_length, args->hough_min_gap);
 
-    pthread_mutex_unlock(&args->line_finder_mutex);
-    pthread_exit(NULL);
-}
-
-
-void * line_search_thread_routine (void * input) {
-
-    size_t i = 0;
-    float angle = 0;
-
-    struct line_capture * args = (struct line_capture *)input;
-
-    if (pthread_mutex_trylock(&args->line_search_mutex) != 0) {
-        pthread_mutex_unlock(&args->line_search_mutex);
-        pthread_exit(NULL);
-    }
-
     if (args->lines.size() > 350) {
         pthread_mutex_unlock(&args->line_search_mutex);
         pthread_exit(NULL);
@@ -55,6 +40,21 @@ void * line_search_thread_routine (void * input) {
             args->average_line[3] = (line[3] + args->average_line[3]) / 2;
         }
     }
+
+    pthread_mutex_unlock(&args->line_finder_mutex);
+    pthread_exit(NULL);
+}
+
+
+void * line_search_thread_routine (void * input) {
+
+    struct line_capture * args = (struct line_capture *)input;
+
+    if (pthread_mutex_trylock(&args->line_search_mutex) != 0) {
+        pthread_mutex_unlock(&args->line_search_mutex);
+        pthread_exit(NULL);
+    }
+
 
     pthread_mutex_unlock(&args->line_search_mutex);
     pthread_exit(NULL);
