@@ -1,29 +1,4 @@
-#include <cstdlib>
-#include <stdio.h>
-#include <pthread.h>
-#include <math.h>
-#include <opencv2/opencv.hpp>
-#include <opencv2/imgproc/types_c.h>
-#include <opencv2/imgproc.hpp>
-
-struct line_capture{
-    int thread;
-    int hough_thresh;
-    int hough_min_length;
-    int hough_min_gap;
-    int min_angle;
-    int max_angle;
-    int canny_thresh;
-    int num_good_lines;
-
-    float average_angle;
-
-    cv::Mat raw;
-    cv::Mat canny;
-    cv::vector<cv::Vec4i> lines;
-    cv::Vec4i roi;
-    cv::Vec4i average_line;
-};
+#include "line_finder.h"
 
 pthread_mutex_t line_finder_mutex[2] = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t line_search_mutex[2] = PTHREAD_MUTEX_INITIALIZER;
@@ -86,24 +61,3 @@ void * line_finder_thread_routine(void * input) {
     pthread_exit(NULL);
 }
 
-int main(int argc, char ** argv) {
-
-    cv::VideoCapture cap_f(0);
-    cv::VideoCapture cap_r(1);
-
-    cv::Mat raw_f;
-    cv::Mat raw_r;
-
-    for (;;) {
-        cap_f >> raw_f;
-        cap_r >> raw_r;
-
-        cv::imshow("raw_f", raw_f);
-        cv::imshow("raw_r", raw_r);
-
-        if (cv::waitKey(30)) {
-            break;
-        }
-    }
-    return 0;
-}
