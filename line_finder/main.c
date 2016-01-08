@@ -1,5 +1,8 @@
 #include "line_finder.h"
 
+#define CANNY_THRESH_MIN 10
+#define CANNY_THRESH_MAX 50
+
 
 int main(int argc, char ** argv) {
 
@@ -29,6 +32,9 @@ int main(int argc, char ** argv) {
     cap_f >> line_cap_f.canny;
     cap_r >> line_cap_r.canny;
 
+    args_f.canny_thresh = 100;
+    args_r.canny_thresh = 100;
+
     for (;;) {
         cap_f >> line_cap_f.raw;
         cap_r >> line_cap_r.raw;
@@ -56,12 +62,24 @@ int main(int argc, char ** argv) {
             args_f.max_angle = 160;
             args_f.raw = line_cap_f.raw;
 
-            args_f.canny_thresh = 100;
+            if (args_f.lines.size() > CANNY_THRESH_MAX) {
+                if (args_f.canny_thresh < 200) {
+                    args_f.canny_thresh++;
+                }
+            }
+            if (args_f.lines.size() < CANNY_THRESH_MIN) {
+                if (args_f.canny_thresh > 10) {
+                    args_f.canny_thresh--;
+                }
+            }
+
 
             if (args_f.lines.size() > 0) {
                 line_cap_f = args_f;
             }
             
+            printf("Num Lines F: %4d canny_thresh: %4d\n", args_f.lines.size(), 
+                   args_f.canny_thresh);
 
             rc = pthread_create(&line_finder_thread_f, &attr_f, line_finder_thread_routine, (void *) &args_f);
             
@@ -77,7 +95,7 @@ int main(int argc, char ** argv) {
 			pthread_attr_init(&attr_r);
 			pthread_attr_setstacksize(&attr_r, (sizeof(struct line_capture)*500));
 
-            args_r.thread = 0;
+            args_r.thread = 1;
             args_r.hough_thresh = 90;
             args_r.hough_min_length = 50;
             args_r.hough_min_gap = 10;
@@ -85,11 +103,22 @@ int main(int argc, char ** argv) {
             args_r.max_angle = 30;
             args_r.raw = line_cap_r.raw;
 
-            args_r.canny_thresh = 100;
+            if (args_r.lines.size() > CANNY_THRESH_MAX) {
+                if (args_r.canny_thresh < 200) {
+                    args_r.canny_thresh++;
+                }
+            }
+            if (args_r.lines.size() < CANNY_THRESH_MIN) {
+                if (args_r.canny_thresh > 0) {
+                    args_r.canny_thresh--;
+                }
+            }
 
             if (args_r.lines.size() > 0) {
                 line_cap_r = args_r;
             }
+            printf("Num Lines R: %4d canny_thresh: %4d\n", args_r.lines.size(), 
+                   args_r.canny_thresh);
             
 
             rc = pthread_create(&line_finder_thread_r, &attr_r, line_finder_thread_routine, (void *) &args_r);
@@ -102,7 +131,6 @@ int main(int argc, char ** argv) {
             pthread_mutex_unlock(&args_r.line_finder_mutex);
         }
         
-        printf("Num Lines F: %4d\nNum Lines R: %4d\n", line_cap_f.lines.size(), line_cap_r.lines.size());
 
         if (cv::waitKey(30) >= 0) {
             pthread_join(line_finder_thread_f, NULL);
