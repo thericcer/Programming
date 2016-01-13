@@ -30,6 +30,8 @@ struct line_capture{
 
     pthread_mutex_t line_finder_mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_t line_search_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+    pthread_cond_t line_finder_cond = PTHREAD_COND_INITIALIZER;
 };
 
 
