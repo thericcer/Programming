@@ -18,7 +18,7 @@ struct line_capture{
     int min_angle;
     int max_angle;
     int canny_thresh;
-    int num_good_lines;
+    int num_parallel_lines;
 
     bool exit;
 
@@ -27,12 +27,14 @@ struct line_capture{
     cv::Mat raw;
     cv::Mat canny;
     cv::vector<cv::Vec4i> lines;
+    cv::vector<cv::Vec4i> good_lines;
     cv::Vec4i roi;
     cv::Vec4i average_line;
 
     pthread_mutex_t line_finder_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     pthread_cond_t line_finder_cond = PTHREAD_COND_INITIALIZER;
+    pthread_cond_t line_search_cond = PTHREAD_COND_INITIALIZER;
 };
 
 

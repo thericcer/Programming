@@ -1,10 +1,11 @@
 #include "line_finder.h"
 #include <time.h>
+#include <unistd.h>
 
 #define CANNY_THRESH_MIN 0
 #define CANNY_THRESH_MAX 500
-#define LINE_THRESH_MIN 10
-#define LINE_THRESH_MAX 50
+#define LINE_THRESH_MIN 50
+#define LINE_THRESH_MAX 250
 
 #define RR false
 
@@ -14,12 +15,20 @@ int main(int argc, char ** argv) {
 
     cv::VideoCapture cap_f(0);
 
+    cv::Mat hls;
+    cv::Mat mask;
+    cv::Mat zero = cv::Mat(1, 1, CV_32F, cv::Scalar(0));
+
     struct line_capture line_cap_f;
     struct line_capture args_f;
 
     args_f.exit = false;
 
     int rc = 1;
+    unsigned char lightness_min = 160;
+    unsigned char lightness_range = 30;
+    unsigned char lightness_max = 255;
+    unsigned char lightness = lightness_min;
 
     pthread_t line_finder_thread_f;
     pthread_t line_search_thread_f;
@@ -46,15 +55,15 @@ int main(int argc, char ** argv) {
     args_f.canny_thresh = 100;
     args_f.thread = 0;
     args_f.hough_thresh = 90;
-    args_f.hough_min_length = 50;
+    args_f.hough_min_length = 100;
     args_f.hough_min_gap = 10;
-    args_f.min_angle = 130;
-    args_f.max_angle = 160;
+    args_f.min_angle = 85;
+    args_f.max_angle = 95;
 
     pthread_attr_init(&attr_f);
 #if RR
     param_f.sched_priority = 1;
-    pthread_attr_setschedpolicy(&attr_f, SCHED_RR);
+    pthread_attr_setschedpolicy(&attr_f, SCHED_FIFO);
     pthread_attr_setschedparam(&attr_f, &param_f);
     pthread_attr_setinheritsched(&attr_f, PTHREAD_EXPLICIT_SCHED);
 #endif
@@ -63,7 +72,7 @@ int main(int argc, char ** argv) {
     pthread_attr_init(&attr_search_f);
 #if RR
     param_search_f.sched_priority = 1;
-    pthread_attr_setschedpolicy(&attr_search_f, SCHED_RR);
+    pthread_attr_setschedpolicy(&attr_search_f, SCHED_FIFO);
     pthread_attr_setschedparam(&attr_search_f, &param_search_f);
     pthread_attr_setinheritsched(&attr_search_f, PTHREAD_EXPLICIT_SCHED);
 #endif
@@ -88,59 +97,103 @@ int main(int argc, char ** argv) {
         clock_t start_time = clock();
         cap_f >> line_cap_f.raw;
 
+        cv::flip(line_cap_f.raw, line_cap_f.raw, -1);
 
-        cv::line(line_cap_f.raw, cv::Point(line_cap_f.average_line[0], line_cap_f.average_line[1]),
-                        cv::Point(line_cap_f.average_line[2], line_cap_f.average_line[3]),
-                        cv::Scalar(0, 255, 255), 3, CV_AA);
+        cv::cvtColor(line_cap_f.raw, hls, CV_RGB2HLS);
+
+        cv::inRange(hls, cv::Scalar(0, lightness, 0),
+                                    cv::Scalar(255, lightness + lightness_range, 255),
+                                    mask);
+
+        mask = ~mask;
+        cv::bitwise_and(line_cap_f.raw, zero, line_cap_f.raw, mask);
+
+        // cv::line(line_cap_f.raw, cv::Point(line_cap_f.average_line[0], 0),
+        //                 cv::Point(line_cap_f.average_line[2], 480),
+        //                 cv::Scalar(0, 255, 255), 3, CV_AA);
 
         cv::imshow("raw_f", line_cap_f.raw);
         cv::imshow("canny_f", line_cap_f.canny);
 
-//        if (pthread_mutex_trylock(&args_f.line_finder_mutex) == 0) {
+        if (pthread_mutex_trylock(&args_f.line_finder_mutex) == 0) {
 
-            printf("Thread: Main | Copying args_f to line_cap_f\n");
+            // printf("Thread: Main | Copying args_f to line_cap_f\n");
 
             args_f.thread = 0;
-            args_f.hough_thresh = 90;
-            args_f.hough_min_length = 50;
-            args_f.hough_min_gap = 10;
-            args_f.min_angle = 130;
-            args_f.max_angle = 160;
+            args_f.min_angle = 80;
+            args_f.max_angle = 100;
             args_f.raw = line_cap_f.raw;
-
-            if (args_f.lines.size() > LINE_THRESH_MAX) {
-                if (args_f.canny_thresh < CANNY_THRESH_MAX) {
-                    args_f.canny_thresh++;
-                }
+            if (argc == 6) {
+                args_f.hough_min_length = atoi(argv[1]);
+                args_f.hough_min_gap = atoi(argv[2]);
+                args_f.hough_thresh = atoi(argv[3]);
+                lightness = atoi(argv[4]);
+                lightness_range = atoi(argv[5]);
+            } else {
+                args_f.hough_thresh = 20;
+                args_f.hough_min_length = 50;
+                args_f.hough_min_gap = 20;
+                lightness_min = 160;
+                lightness_range = 30;
             }
-            if (args_f.lines.size() < LINE_THRESH_MIN) {
-                if (args_f.canny_thresh > CANNY_THRESH_MIN) {
-                    args_f.canny_thresh--;
-                }
-            }
 
 
-            if (args_f.lines.size() > 0) {
+
+            // if (args_f.num_parallel_lines > LINE_THRESH_MAX) {
+            //     if (args_f.canny_thresh < CANNY_THRESH_MAX) {
+            //         //args_f.canny_thresh+=15;
+            //     }
+            //     if (lightness < lightness_max) {
+            //         lightness+=5;
+            //     }
+            // }
+            // if (args_f.num_parallel_lines < LINE_THRESH_MIN) {
+            //     if (args_f.lines.size() > 80) {
+            //         //args_f.canny_thresh += 15;
+            //     }
+            //     if (args_f.canny_thresh > CANNY_THRESH_MIN) {
+            //         //args_f.canny_thresh-=5;
+            //     }
+            //     if (lightness > lightness_min) {
+            //         lightness-=5;
+            //     }
+            // }
+
+
+            if (args_f.num_parallel_lines > 0) {
                 line_cap_f = args_f;
             }
             line_cap_f = args_f;
 
-//            pthread_mutex_unlock(&args_f.line_finder_mutex);
-            printf("Num Lines F: %4d canny_thresh: %4d\n", args_f.lines.size(), 
-                   args_f.canny_thresh);
+            pthread_cond_signal(&args_f.line_finder_cond);
 
-
-//        }
-
-        if (cv::waitKey(30) >= 0) {
-            while (!pthread_mutex_trylock(&args_f.line_finder_mutex));
-            args_f.exit = true;
             pthread_mutex_unlock(&args_f.line_finder_mutex);
+            printf("Num Good Lines F: %4d Average angle: %4f canny_thresh: %4d lightness: %4d\n", line_cap_f.num_parallel_lines,
+                   line_cap_f.average_angle, line_cap_f.canny_thresh, lightness);
+
+
+        }
+
+        rc = cv::waitKey(1);
+        if (rc == 113) {
+
+            printf ("Main Thread: Exit, locking mutex\n");
+            sleep(1);
+
+            while (pthread_mutex_trylock(&args_f.line_finder_mutex));
+            args_f.exit = true;
+            printf("Main Thread: Signaling line_finder to exit\n");
+            pthread_cond_signal(&args_f.line_finder_cond);
+            pthread_mutex_unlock(&args_f.line_finder_mutex);
+            printf("Main Thread: Waiting for line_finder to join\n");
             pthread_join(line_finder_thread_f, NULL);
+            pthread_join(line_search_thread_f, NULL);
+
             break;
         }
         start_time = clock() - start_time;
-        printf("Thread: Main | Time: %f s\n", ((float)start_time)/CLOCKS_PER_SEC);
+        //printf("Thread: Main   | Time: %f s | FPS: %f\n", ((float)start_time)/CLOCKS_PER_SEC,
+        //        1/(((float)start_time)/CLOCKS_PER_SEC) );
     }
     return 0;
 }

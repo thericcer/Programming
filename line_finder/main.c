@@ -27,8 +27,8 @@ int main(int argc, char ** argv) {
     pthread_t line_search_thread_f;
     pthread_t line_search_thread_r;
 
-	pthread_attr_t attr_f;
-	pthread_attr_t attr_r;
+    pthread_attr_t attr_f;
+    pthread_attr_t attr_r;
     struct sched_param param_f;
     struct sched_param param_r;
 
@@ -71,8 +71,8 @@ int main(int argc, char ** argv) {
         if (pthread_mutex_trylock(&args_f.line_finder_mutex) == 0) {
 
             param_f.sched_priority = 1;
-			pthread_attr_init(&attr_f);
-			pthread_attr_setstacksize(&attr_f, (sizeof(struct line_capture)*500));
+            pthread_attr_init(&attr_f);
+            pthread_attr_setstacksize(&attr_f, (sizeof(struct line_capture)*500));
             pthread_attr_setschedpolicy(&attr_f, SCHED_FIFO);
             pthread_attr_setschedparam(&attr_f, &param_f);
             pthread_attr_setinheritsched(&attr_f, PTHREAD_EXPLICIT_SCHED);
@@ -124,8 +124,8 @@ int main(int argc, char ** argv) {
         if (pthread_mutex_trylock(&args_r.line_finder_mutex) == 0) {
 
             param_r.sched_priority = 1;
-			pthread_attr_init(&attr_r);
-			pthread_attr_setstacksize(&attr_r, (sizeof(struct line_capture)*500));
+            pthread_attr_init(&attr_r);
+            pthread_attr_setstacksize(&attr_r, (sizeof(struct line_capture)*500));
             pthread_attr_setschedpolicy(&attr_r, SCHED_FIFO);
             pthread_attr_setschedparam(&attr_r, &param_r);
             pthread_attr_setinheritsched(&attr_r, PTHREAD_EXPLICIT_SCHED);
