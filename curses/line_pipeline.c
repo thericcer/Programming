@@ -3,6 +3,16 @@
 
 #define DEBUG false
 
+void * camera_thread_routine (void * input) {
+    struct capture * cap = (struct capture *) input;
+
+    while(1) {
+        if (pthread_mutex_trylock(&cap->capture_mutex) != 0) {
+            continue;
+        }
+
+        if (cap->exit) {
+            mvwprintw(cap->campera_win, 4, 2, "-%30s"
 
 void * threshold_thread_routine(void * input) {
 

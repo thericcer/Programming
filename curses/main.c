@@ -1,4 +1,5 @@
 #include <time.h>
+#include <unistd.h>
 #include <opencv2/opencv.hpp>
 #include <curses.h>
 
@@ -83,6 +84,24 @@ int main(int argc, char ** argv) {
                 mvwprintw(threshold_win, 1, 2, "THRESHOLD");
                 wrefresh(threshold_win);
                 break;
+
+            case 'o':
+                switch (mode) {
+                    case CAMERA:
+                        mvwprintw(camera_win, 2, 2, "%-30s", "Front Camera: Opening");
+                        wrefresh(camera_win);
+                        sleep(1);
+                        //cap_f.open("/dev/video0");
+                        // Start Camera Thread
+                        mvwprintw(camera_win, 2, 2, "%-30s", "Front Camera: Open");
+                        wrefresh(camera_win);
+                        break;
+
+                    default:
+                        break;
+                }
+                break;
+
 
             case KEY_UP:
                 switch (mode) {
