@@ -5,7 +5,7 @@
 
 enum {
     CAMERA,
-    LINE,
+    PIPELINE,
     THRESHOLD
 
 };
@@ -35,15 +35,15 @@ int main(int argc, char ** argv) {
 
     WINDOW * camera_win;
     WINDOW * threshold_win;
-    WINDOW * line_win;
+    WINDOW * pipeline_win;
 
     camera_win = newwin((LINES/2)-1, COLS/2, 0, 0);
     threshold_win = newwin((LINES/2)-1, COLS/2, (LINES/2)-1, 0);
-    line_win = newwin((LINES/2)-1, COLS/2, 0, COLS/2);
+    pipeline_win = newwin((LINES/2)-1, COLS/2, 0, COLS/2);
 
     box(camera_win, 0, 0);
     box(threshold_win, 0, 0);
-    box(line_win, 0, 0);
+    box(pipeline_win, 0, 0);
 
     mvwprintw(camera_win, 1, 2, "CAMERA");
     mvwprintw(camera_win, 2, 2, "Front Camera: %-20s", "Closed");
@@ -52,13 +52,19 @@ int main(int argc, char ** argv) {
     mvwprintw(threshold_win, 2, 2, "%-15s: %3d", "Canny Thresh", canny_thresh);
     mvwprintw(threshold_win, 3, 2, "%-15s: %3d", "Lightness", lightness);
 
-    mvwprintw(line_win, 1, 2, "LINE");
-    mvwprintw(line_win, 2, 2, "%-15s: %3d", "Num Lines", 23);
+    getmaxyx(pipeline_win, lines, cols);
+    mvwprintw(pipeline_win, 1, 2, "PIPELINE");
+    mvwprintw(pipeline_win, 1, cols-31, "%-30s", "Camera Thread:      Stopped");
+    mvwprintw(pipeline_win, 2, cols-31, "%-30s", "Threshold Thread:   Stopped");
+    mvwprintw(pipeline_win, 3, cols-31, "%-30s", "Line Search Thread: Stopped");
+    mvwprintw(pipeline_win, 2, 2, "%-15s: %3d", "Num Lines", 23);
+
+    mvprintw(LINES-1, 1, "%-20s", "Camera Mode");
 
     refresh();
     wrefresh(camera_win);
     wrefresh(threshold_win);
-    wrefresh(line_win);
+    wrefresh(pipeline_win);
 
     while (ch != 'q') {
         ch = getch();
@@ -72,7 +78,7 @@ int main(int argc, char ** argv) {
                 break;
 
             case 'L':
-                mode = LINE;
+                mode = PIPELINE;
                 mvprintw(LINES-1, 1, "%-20s", "Line Mode");
                 mvwprintw(threshold_win, 1, 2, "LINE");
                 wrefresh(threshold_win);

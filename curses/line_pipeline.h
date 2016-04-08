@@ -24,6 +24,11 @@ struct capture {
 
     float average_angle;
 
+    WINDOW * camera_win;
+
+    char raw_win[5] = "raw";
+
+    cv::VideoCapture cap;
     cv::Mat raw;
     cv::Mat canny;
     cv::vector<cv::Vec4i> lines;

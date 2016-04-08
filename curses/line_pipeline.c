@@ -12,7 +12,23 @@ void * camera_thread_routine (void * input) {
         }
 
         if (cap->exit) {
-            mvwprintw(cap->campera_win, 4, 2, "-%30s"
+            mvwprintw(cap->campera_win, 4, 2, "-%30s", "Exiting Camera thread");
+            cap->cap.release();
+            pthread_exit(NULL);
+        }
+
+        pthread_cond_wait(&cap->camera_cond, &cond->capture_mutex);
+
+        if (cap->cap.isOpened()) {
+            cap->cap.grab();
+            cap->cap.retrieve(cap->raw);
+            cv::imshow(cap->raw_win, cap->raw);
+        }
+
+        pthread_cond_signal(&cap->threshold_cond);
+        pthread_mutex_unlock(&cap->capture_mutex);
+    }
+}
 
 void * threshold_thread_routine(void * input) {
 
