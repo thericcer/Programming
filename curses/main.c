@@ -4,7 +4,6 @@
 #include <curses.h>
 
 enum {
-    CAMERA,
     PIPELINE,
     THRESHOLD
 
@@ -20,7 +19,7 @@ int main(int argc, char ** argv) {
 
     cv::VideoCapture cap_f();
     int ch = ' ';
-    int mode = CAMERA;
+    int mode = THRESHOLD;
     int thresh_adjust = THRESH_CANNY;
     int lines = 0;
     int cols  = 0;
@@ -33,20 +32,14 @@ int main(int argc, char ** argv) {
     nodelay(stdscr, true);
     keypad(stdscr, true);
 
-    WINDOW * camera_win;
     WINDOW * threshold_win;
     WINDOW * pipeline_win;
 
-    camera_win = newwin((LINES/2)-1, COLS/2, 0, 0);
     threshold_win = newwin((LINES/2)-1, COLS/2, (LINES/2)-1, 0);
     pipeline_win = newwin((LINES/2)-1, COLS/2, 0, COLS/2);
 
-    box(camera_win, 0, 0);
     box(threshold_win, 0, 0);
     box(pipeline_win, 0, 0);
-
-    mvwprintw(camera_win, 1, 2, "CAMERA");
-    mvwprintw(camera_win, 2, 2, "Front Camera: %-20s", "Closed");
 
     mvwprintw(threshold_win, 1, 2, "THRESHOLD");
     mvwprintw(threshold_win, 2, 2, "%-15s: %3d", "Canny Thresh", canny_thresh);
@@ -59,10 +52,9 @@ int main(int argc, char ** argv) {
     mvwprintw(pipeline_win, 3, cols-31, "%-30s", "Line Search Thread: Stopped");
     mvwprintw(pipeline_win, 2, 2, "%-15s: %3d", "Num Lines", 23);
 
-    mvprintw(LINES-1, 1, "%-20s", "Camera Mode");
+    mvprintw(LINES-1, 1, "%-20s", "Threshold Mode");
 
     refresh();
-    wrefresh(camera_win);
     wrefresh(threshold_win);
     wrefresh(pipeline_win);
 
@@ -70,13 +62,6 @@ int main(int argc, char ** argv) {
         ch = getch();
 
         switch (ch) {
-            case 'C':
-                mode = CAMERA;
-                mvprintw(LINES-1, 1, "%-20s", "Camera Mode");
-                mvwprintw(camera_win, 1, 2, "CAMERA");
-                wrefresh(camera_win);
-                break;
-
             case 'L':
                 mode = PIPELINE;
                 mvprintw(LINES-1, 1, "%-20s", "Line Mode");
@@ -93,16 +78,6 @@ int main(int argc, char ** argv) {
 
             case 'o':
                 switch (mode) {
-                    case CAMERA:
-                        mvwprintw(camera_win, 2, 2, "%-30s", "Front Camera: Opening");
-                        wrefresh(camera_win);
-                        sleep(1);
-                        //cap_f.open("/dev/video0");
-                        // Start Camera Thread
-                        mvwprintw(camera_win, 2, 2, "%-30s", "Front Camera: Open");
-                        wrefresh(camera_win);
-                        break;
-
                     default:
                         break;
                 }

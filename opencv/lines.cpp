@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <opencv2/opencv.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/imgproc/types_c.h>
 #include <opencv2/imgproc.hpp>
 
@@ -29,8 +30,8 @@ int main (int argc, char ** argv) {
 	cv::Mat color_canny;
 	cv::Mat color_canny_r;
 
-	cv::vector<cv::Vec4i> lines;
-	cv::vector<cv::Vec4i> lines_r;
+	std::vector<cv::Vec4i> lines;
+	std::vector<cv::Vec4i> lines_r;
 
 	if (argc == 3) {
 		canny_thresh = atoi(argv[1]);
