@@ -1,5 +1,5 @@
 CC=g++
-FLAGS=-O0 -Wall -lopencv_highgui -lopencv_core -lopencv_imgproc -lpthread
+FLAGS=-O0 -Wall -lopencv_highgui -lopencv_core -lopencv_imgproc -lopencv_videoio -lpthread
 RM=rm -rfv
 
 C_SRCS += \

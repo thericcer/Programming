@@ -5,7 +5,7 @@
 #define CANNY_THRESH_MIN 0
 #define CANNY_THRESH_MAX 500
 #define LINE_THRESH_MIN 50
-#define LINE_THRESH_MAX 250
+#define LINE_THRESH_MAX 20
 
 #define RR false
 
@@ -14,20 +14,32 @@ pthread_cond_t line_finder_cond[2];
 int main(int argc, char ** argv) {
 
     cv::VideoCapture cap_f(0);
+    cv::VideoCapture cap_r(1);
 
     cv::Mat hls;
     cv::Mat mask;
     cv::Mat zero = cv::Mat(1, 1, CV_32F, cv::Scalar(0));
 
+    cvNamedWindow("canny_f", CV_WINDOW_FREERATIO);
+    cvNamedWindow("raw_f", CV_WINDOW_FREERATIO);
+    cvNamedWindow("warped", CV_WINDOW_FREERATIO);
+    cvNamedWindow("raw_r", CV_WINDOW_FREERATIO);
+
+
+    cap_f.set(cv::CAP_PROP_BRIGHTNESS, 0);
+    // cap_f.set(cv::CAP_PROP_EXPOSURE, 100);
+
     struct line_capture line_cap_f;
     struct line_capture args_f;
+
+    struct line_capture line_cap_r;
 
     args_f.exit = false;
 
     int rc = 1;
-    unsigned char lightness_min = 160;
-    unsigned char lightness_range = 30;
-    unsigned char lightness_max = 255;
+    unsigned char lightness_min = 0;
+    unsigned char lightness_range = 0;
+    unsigned char lightness_max = 100;
     unsigned char lightness = lightness_min;
 
     pthread_t line_finder_thread_f;
@@ -46,11 +58,18 @@ int main(int argc, char ** argv) {
         printf("Failed to open one of the camera!\n");
         return -1;
     }
+    if (!cap_r.isOpened()) {
+        printf("Failed to open one of the camera!\n");
+        return -1;
+    }
 
     cap_f >> line_cap_f.canny;
     cap_f >> line_cap_f.raw;
     cap_f >> args_f.canny;
     cap_f >> args_f.raw;
+
+    cap_f >> line_cap_r.canny;
+    cap_f >> line_cap_r.raw;
 
     args_f.canny_thresh = 100;
     args_f.thread = 0;
@@ -97,16 +116,19 @@ int main(int argc, char ** argv) {
         clock_t start_time = clock();
         cap_f >> line_cap_f.raw;
 
+        cap_r >> line_cap_r.raw;
+
         cv::flip(line_cap_f.raw, line_cap_f.raw, -1);
+        cv::flip(line_cap_r.raw, line_cap_r.raw, 0);
 
-        cv::cvtColor(line_cap_f.raw, hls, CV_RGB2HLS);
+        // cv::cvtColor(line_cap_f.raw, hls, CV_RGB2HLS);
 
-        cv::inRange(hls, cv::Scalar(0, lightness, 0),
-                                    cv::Scalar(255, lightness + lightness_range, 255),
-                                    mask);
+        // cv::inRange(hls, cv::Scalar(0, lightness, 0),
+        //                             cv::Scalar(255, lightness + lightness_range, 255),
+        //                             mask);
 
-        mask = ~mask;
-        cv::bitwise_and(line_cap_f.raw, zero, line_cap_f.raw, mask);
+        // mask = ~mask;
+        // cv::bitwise_and(line_cap_f.raw, zero, line_cap_f.raw, mask);
 
         // cv::line(line_cap_f.raw, cv::Point(line_cap_f.average_line[0], 0),
         //                 cv::Point(line_cap_f.average_line[2], 480),
@@ -114,6 +136,7 @@ int main(int argc, char ** argv) {
 
         cv::imshow("raw_f", line_cap_f.raw);
         cv::imshow("canny_f", line_cap_f.canny);
+        cv::imshow("raw_r", line_cap_r.raw);
 
         if (pthread_mutex_trylock(&args_f.line_finder_mutex) == 0) {
 
@@ -133,36 +156,38 @@ int main(int argc, char ** argv) {
                 args_f.hough_thresh = 20;
                 args_f.hough_min_length = 50;
                 args_f.hough_min_gap = 20;
-                lightness_min = 160;
-                lightness_range = 30;
+                lightness_min = 0;
+                lightness_range = 0;
             }
 
 
 
-            // if (args_f.num_parallel_lines > LINE_THRESH_MAX) {
-            //     if (args_f.canny_thresh < CANNY_THRESH_MAX) {
-            //         //args_f.canny_thresh+=15;
-            //     }
-            //     if (lightness < lightness_max) {
-            //         lightness+=5;
-            //     }
-            // }
-            // if (args_f.num_parallel_lines < LINE_THRESH_MIN) {
-            //     if (args_f.lines.size() > 80) {
-            //         //args_f.canny_thresh += 15;
-            //     }
-            //     if (args_f.canny_thresh > CANNY_THRESH_MIN) {
-            //         //args_f.canny_thresh-=5;
-            //     }
-            //     if (lightness > lightness_min) {
-            //         lightness-=5;
-            //     }
-            // }
-
-
-            if (args_f.num_parallel_lines > 0) {
-                line_cap_f = args_f;
+            if (args_f.num_parallel_lines > LINE_THRESH_MAX) {
+                if (args_f.canny_thresh < CANNY_THRESH_MAX) {
+                    //args_f.canny_thresh+=15;
+                }
+                if (lightness > lightness_min) {
+                    lightness-=5;
+                    cap_f.set(cv::CAP_PROP_BRIGHTNESS, lightness);
+                }
             }
+            if (args_f.num_parallel_lines < LINE_THRESH_MIN) {
+                if (args_f.lines.size() > 80) {
+                    //args_f.canny_thresh += 15;
+                }
+                if (args_f.canny_thresh > CANNY_THRESH_MIN) {
+                    //args_f.canny_thresh-=5;
+                }
+                if (lightness < lightness_max) {
+                    lightness+=5;
+                    cap_f.set(cv::CAP_PROP_BRIGHTNESS, lightness);
+                    if (lightness >= lightness_max-lightness_range) {
+                        lightness = lightness-15;
+                    }
+                }
+            }
+
+
             line_cap_f = args_f;
 
             pthread_cond_signal(&args_f.line_finder_cond);

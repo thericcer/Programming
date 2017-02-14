@@ -66,7 +66,7 @@ void * line_finder_thread_routine(void * input) {
 
         cv::imshow("warped", warped);
 
-        cv::Canny(warped, args->canny, args->canny_thresh, args->canny_thresh*3);
+        cv::Canny(args->raw, args->canny, args->canny_thresh, args->canny_thresh*3);
 
 #if DEBUG
         printf("Hough Thread: %d | Running Canny.\n", args->thread);
