@@ -62,11 +62,12 @@ void * line_finder_thread_routine(void * input) {
 
 
         cv::warpPerspective(args->raw, warped, lambda, args->raw.size());
-        //cv::GaussianBlur(warped, warped, cv::Size(5, 5), 0, 0);
+        cv::GaussianBlur(warped, warped, cv::Size(5, 5), 0, 0);
 
         cv::imshow("warped", warped);
 
         cv::Canny(args->raw, args->canny, args->canny_thresh, args->canny_thresh*3);
+        cv::Canny(args->warped, args->canny_warped, args->canny_thresh, args->canny_thresh*3);
 
 #if DEBUG
         printf("Hough Thread: %d | Running Canny.\n", args->thread);
@@ -76,7 +77,7 @@ void * line_finder_thread_routine(void * input) {
 #if DEBUG
         printf("Hough Thread: %d | Running Hough Lines P.\n", args->thread);
 #endif
-        cv::HoughLinesP(args->canny, args->lines, 1, CV_PI/180, args->hough_thresh,
+        cv::HoughLinesP(args->canny_warped, args->lines, 1, CV_PI/180, args->hough_thresh,
                         args->hough_min_length, args->hough_min_gap);
 
         start_time = clock() - start_time;

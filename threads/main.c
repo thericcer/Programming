@@ -188,7 +188,8 @@ int main(int argc, char ** argv) {
             }
 
 
-            line_cap_f = args_f;
+            args_f.raw = line_cap_f.raw;
+            line_cap_f.canny = args_f.canny;
 
             pthread_cond_signal(&args_f.line_finder_cond);
 
